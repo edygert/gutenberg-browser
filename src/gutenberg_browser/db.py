@@ -197,7 +197,7 @@ def search_books(
         )
         params.append(bookshelf)
 
-    base += " GROUP BY b.id ORDER BY b.downloads DESC"
+    base += " GROUP BY b.id ORDER BY b.title COLLATE NOCASE ASC"
 
     count_row = conn.execute(
         f"SELECT COUNT(*) FROM ({base}) _sub", params
