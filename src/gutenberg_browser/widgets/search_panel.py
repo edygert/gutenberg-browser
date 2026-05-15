@@ -119,8 +119,9 @@ class SearchPanel(Vertical):
 
     def populate_filters(self, languages) -> None:
         """Called by the app once the DB is ready."""
+        from ..db import lang_name
         self._lang_options = [("All Languages", "")] + [
-            (f"{code}  ({cnt:,})", code) for code, cnt in languages
+            (f"{lang_name(code)}  ({cnt:,})", code) for code, cnt in languages
         ]
         try:
             self.query_one("#lang-filter", Select).set_options(

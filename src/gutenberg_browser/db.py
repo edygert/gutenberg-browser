@@ -7,6 +7,71 @@ from .models import Author, Book, BookFormat, BookRow
 
 DB_PATH = Path("gutenberg.db")
 
+LANGUAGE_NAMES: dict[str, str] = {
+    "af":  "Afrikaans",
+    "ar":  "Arabic",
+    "arp": "Arapaho",
+    "bg":  "Bulgarian",
+    "bo":  "Tibetan",
+    "br":  "Breton",
+    "ca":  "Catalan",
+    "ceb": "Cebuano",
+    "cs":  "Czech",
+    "cy":  "Welsh",
+    "da":  "Danish",
+    "de":  "German",
+    "el":  "Greek",
+    "en":  "English",
+    "enm": "Middle English",
+    "eo":  "Esperanto",
+    "es":  "Spanish",
+    "et":  "Estonian",
+    "fa":  "Persian",
+    "fi":  "Finnish",
+    "fr":  "French",
+    "fur": "Friulian",
+    "fy":  "Frisian",
+    "ga":  "Irish",
+    "gl":  "Galician",
+    "gla": "Scottish Gaelic",
+    "he":  "Hebrew",
+    "hu":  "Hungarian",
+    "ia":  "Interlingua",
+    "ilo": "Ilocano",
+    "is":  "Icelandic",
+    "it":  "Italian",
+    "iu":  "Inuktitut",
+    "ja":  "Japanese",
+    "la":  "Latin",
+    "lt":  "Lithuanian",
+    "mi":  "Māori",
+    "myn": "Mayan",
+    "nah": "Nahuatl",
+    "nap": "Neapolitan",
+    "nl":  "Dutch",
+    "no":  "Norwegian",
+    "oc":  "Occitan",
+    "oji": "Ojibwe",
+    "pl":  "Polish",
+    "pt":  "Portuguese",
+    "rmq": "Caló",
+    "ro":  "Romanian",
+    "ru":  "Russian",
+    "sa":  "Sanskrit",
+    "sco": "Scots",
+    "sl":  "Slovenian",
+    "sr":  "Serbian",
+    "sv":  "Swedish",
+    "te":  "Telugu",
+    "tl":  "Tagalog",
+    "yi":  "Yiddish",
+    "zh":  "Chinese",
+}
+
+
+def lang_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, code)
+
 _SCHEMA = """
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;

@@ -66,7 +66,8 @@ def _render_text(book: Book) -> str:
     if book.issued:
         meta.append(f"[dim]Issued:[/dim] {book.issued}")
     if book.language:
-        meta.append(f"[dim]Language:[/dim] {book.language.upper()}")
+        from ..db import lang_name
+        meta.append(f"[dim]Language:[/dim] {lang_name(book.language)}")
     if book.downloads:
         meta.append(f"[dim]Downloads:[/dim] {book.downloads:,}")
     if meta:
