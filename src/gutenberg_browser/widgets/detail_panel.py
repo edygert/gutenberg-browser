@@ -114,10 +114,10 @@ class BookDetail(Vertical):
     DEFAULT_CSS = """
     BookDetail {
         padding: 1 2;
-        height: 1fr;
+        height: auto;
     }
     BookDetail #detail-text {
-        height: 1fr;
+        height: auto;
     }
     BookDetail #open-browser-btn {
         height: auto;
