@@ -62,7 +62,7 @@ def _render_text(book: Book) -> str:
             lines.append(f"  {_esc(_fmt_author(a))}")
         lines.append("")
 
-    meta: list[str] = []
+    meta: list[str] = [f"[dim]ID:[/dim] {book.id}"]
     if book.issued:
         meta.append(f"[dim]Issued:[/dim] {book.issued}")
     if book.language:
