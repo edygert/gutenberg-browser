@@ -105,6 +105,7 @@ class SearchPanel(Vertical):
         self._total = 0
         self._debounce_timer: Optional[Timer] = None
         self._lang_options: list[tuple[str, str]] = [("All Languages", "")]
+        self._updating_lang = False
 
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Search title, author, subject…", id="search-input")
@@ -153,20 +154,41 @@ class SearchPanel(Vertical):
         self._debounce_timer = self.set_timer(0.25, self._do_search)
 
     def _do_search(self) -> None:
-        from ..db import search_books
+        from ..db import get_languages, lang_name, search_books
         conn = self.app.db  # type: ignore[attr-defined]
         if conn is None:
             return
+        query = self._get_query()
+        lang_code = self._get_lang()
         rows, total = search_books(
             conn,
-            query=self._get_query(),
-            lang_code=self._get_lang(),
+            query=query,
+            lang_code=lang_code,
             page=self._page,
             page_size=PAGE_SIZE,
         )
         self._total = total
         self._populate_results(rows)
         self._update_pagination()
+        self._refresh_lang_filter(get_languages(conn, query), lang_code, lang_name)
+
+    def _refresh_lang_filter(self, languages, current_code, lang_name_fn) -> None:
+        new_options = [("All Languages", "")] + [
+            (f"{lang_name_fn(code)}  ({cnt:,})", code) for code, cnt in languages
+        ]
+        available_codes = {code for _, code in new_options}
+        # If the selected language has dropped out of results, reset to All
+        if current_code and current_code not in available_codes:
+            current_code = ""
+        self._updating_lang = True
+        try:
+            sel = self.query_one("#lang-filter", Select)
+            sel.set_options((label, val) for label, val in new_options)
+            sel.value = current_code if current_code else ""
+        except Exception:
+            pass
+        finally:
+            self._updating_lang = False
 
     def _populate_results(self, rows: list[BookRow]) -> None:
         lv = self.query_one("#results-list", ListView)
@@ -190,7 +212,7 @@ class SearchPanel(Vertical):
             self._schedule_search(reset_page=True)
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        if event.select.id == "lang-filter":
+        if event.select.id == "lang-filter" and not self._updating_lang:
             self._schedule_search(reset_page=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

@@ -170,12 +170,25 @@ def get_book_count(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT COUNT(*) FROM books").fetchone()[0]
 
 
-def get_languages(conn: sqlite3.Connection) -> list[tuple[str, int]]:
-    rows = conn.execute(
-        """SELECT l.code, COUNT(*) as cnt
-           FROM languages l JOIN books b ON b.language_id = l.id
-           GROUP BY l.id ORDER BY cnt DESC"""
-    ).fetchall()
+def get_languages(conn: sqlite3.Connection, query: str = "") -> list[tuple[str, int]]:
+    """Return (code, count) pairs, optionally scoped to an FTS query."""
+    fts_query = build_fts_query(query) if query else ""
+    if fts_query:
+        rows = conn.execute(
+            """SELECT l.code, COUNT(*) AS cnt
+               FROM books b
+               JOIN languages l ON l.id = b.language_id
+               WHERE b.id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)
+               GROUP BY l.id
+               ORDER BY cnt DESC""",
+            (fts_query,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT l.code, COUNT(*) AS cnt
+               FROM languages l JOIN books b ON b.language_id = l.id
+               GROUP BY l.id ORDER BY cnt DESC"""
+        ).fetchall()
     return [(r["code"], r["cnt"]) for r in rows]
 
 
