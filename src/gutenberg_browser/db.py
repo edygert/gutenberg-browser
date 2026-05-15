@@ -115,7 +115,7 @@ def get_subjects(conn: sqlite3.Connection, limit: int = 200) -> list[tuple[str, 
     rows = conn.execute(
         """SELECT s.name, COUNT(*) as cnt
            FROM subjects s JOIN book_subjects bs ON bs.subject_id = s.id
-           GROUP BY s.id ORDER BY cnt DESC LIMIT ?""",
+           GROUP BY s.id ORDER BY s.name COLLATE NOCASE ASC LIMIT ?""",
         (limit,),
     ).fetchall()
     return [(r["name"], r["cnt"]) for r in rows]
@@ -125,7 +125,7 @@ def get_bookshelves(conn: sqlite3.Connection, limit: int = 200) -> list[tuple[st
     rows = conn.execute(
         """SELECT bs.name, COUNT(*) as cnt
            FROM bookshelves bs JOIN book_bookshelves bb ON bb.bookshelf_id = bs.id
-           GROUP BY bs.id ORDER BY cnt DESC LIMIT ?""",
+           GROUP BY bs.id ORDER BY bs.name COLLATE NOCASE ASC LIMIT ?""",
         (limit,),
     ).fetchall()
     return [(r["name"], r["cnt"]) for r in rows]
