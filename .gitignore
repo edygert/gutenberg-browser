@@ -1,0 +1,20 @@
+# Generated data (created at runtime, not committed)
+cache/
+gutenberg.db
+gutenberg.db-wal
+gutenberg.db-shm
+
+# Source archive (large binary, not committed)
+rdf-files.tar.zip
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Editor
+.DS_Store
