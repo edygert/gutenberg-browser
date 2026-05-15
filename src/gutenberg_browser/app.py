@@ -156,9 +156,9 @@ class GutenbergApp(App):
     def action_open_browser(self) -> None:
         try:
             detail = self.query_one(BookDetail)
-            if detail.book:
+            if detail._current_book:
                 import webbrowser
-                webbrowser.open(f"https://www.gutenberg.org/ebooks/{detail.book.id}")
+                webbrowser.open(f"https://www.gutenberg.org/ebooks/{detail._current_book.id}")
         except Exception:
             pass
 
@@ -177,6 +177,6 @@ class GutenbergApp(App):
             return
         book = get_book_detail(self.db, book_id)
         try:
-            self.query_one(BookDetail).book = book
+            self.query_one(BookDetail).load_book(book)
         except Exception:
             pass

@@ -97,36 +97,6 @@ SearchPanel #btn-prev, SearchPanel #btn-next {
     padding: 0;
 }
 
-BookDetail {
-    padding: 1 2;
-    height: auto;
-    min-height: 100%;
-}
-
-BookDetail .detail-title {
-    color: $accent;
-    text-style: bold;
-    margin-bottom: 1;
-}
-
-BookDetail .detail-section-header {
-    color: $secondary;
-    text-style: bold;
-    margin-top: 1;
-}
-
-BookDetail .detail-row {
-    color: $text;
-}
-
-BookDetail .detail-muted {
-    color: $text-muted;
-}
-
-BookDetail #open-browser-btn {
-    margin-top: 2;
-    width: auto;
-}
 
 /* ─── Progress screen ────────────────────────────────────────────────────── */
 
