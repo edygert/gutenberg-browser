@@ -105,15 +105,11 @@ class SearchPanel(Vertical):
         self._total = 0
         self._debounce_timer: Optional[Timer] = None
         self._lang_options: list[tuple[str, str]] = [("All Languages", "")]
-        self._subj_options: list[tuple[str, str]] = [("All Subjects", "")]
-        self._shelf_options: list[tuple[str, str]] = [("All Shelves", "")]
 
     def compose(self) -> ComposeResult:
-        yield Input(placeholder="Search title or author…", id="search-input")
+        yield Input(placeholder="Search title, author, subject…", id="search-input")
         with Vertical(id="filter-bar"):
             yield Select(self._lang_options, value="", id="lang-filter", allow_blank=False)
-            yield Select(self._subj_options, value="", id="subj-filter", allow_blank=False)
-            yield Select(self._shelf_options, value="", id="shelf-filter", allow_blank=False)
         yield Static("", id="result-count")
         yield ListView(id="results-list")
         with Horizontal(id="pagination-bar"):
@@ -121,26 +117,14 @@ class SearchPanel(Vertical):
             yield Label("", id="page-label")
             yield Button("Next →", id="btn-next", variant="default")
 
-    def populate_filters(self, languages, subjects, bookshelves) -> None:
+    def populate_filters(self, languages) -> None:
         """Called by the app once the DB is ready."""
         self._lang_options = [("All Languages", "")] + [
             (f"{code}  ({cnt:,})", code) for code, cnt in languages
         ]
-        self._subj_options = [("All Subjects", "")] + [
-            (name[:40], name) for name, _ in subjects
-        ]
-        self._shelf_options = [("All Shelves", "")] + [
-            (name[:40], name) for name, _ in bookshelves
-        ]
         try:
             self.query_one("#lang-filter", Select).set_options(
                 (label, val) for label, val in self._lang_options
-            )
-            self.query_one("#subj-filter", Select).set_options(
-                (label, val) for label, val in self._subj_options
-            )
-            self.query_one("#shelf-filter", Select).set_options(
-                (label, val) for label, val in self._shelf_options
             )
         except Exception:
             pass
@@ -156,20 +140,6 @@ class SearchPanel(Vertical):
     def _get_lang(self) -> str:
         try:
             v = self.query_one("#lang-filter", Select).value
-            return "" if v is Select.NULL or v == "" else str(v)
-        except Exception:
-            return ""
-
-    def _get_subject(self) -> str:
-        try:
-            v = self.query_one("#subj-filter", Select).value
-            return "" if v is Select.NULL or v == "" else str(v)
-        except Exception:
-            return ""
-
-    def _get_shelf(self) -> str:
-        try:
-            v = self.query_one("#shelf-filter", Select).value
             return "" if v is Select.NULL or v == "" else str(v)
         except Exception:
             return ""
@@ -190,8 +160,6 @@ class SearchPanel(Vertical):
             conn,
             query=self._get_query(),
             lang_code=self._get_lang(),
-            subject=self._get_subject(),
-            bookshelf=self._get_shelf(),
             page=self._page,
             page_size=PAGE_SIZE,
         )
@@ -221,7 +189,7 @@ class SearchPanel(Vertical):
             self._schedule_search(reset_page=True)
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        if event.select.id in ("lang-filter", "subj-filter", "shelf-filter"):
+        if event.select.id == "lang-filter":
             self._schedule_search(reset_page=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS formats (
 CREATE VIRTUAL TABLE IF NOT EXISTS books_fts USING fts5(
     title,
     author_names,
+    subjects,
+    bookshelves,
     tokenize = 'unicode61 remove_diacritics 2'
 );
 
@@ -111,24 +113,13 @@ def get_languages(conn: sqlite3.Connection) -> list[tuple[str, int]]:
     return [(r["code"], r["cnt"]) for r in rows]
 
 
-def get_subjects(conn: sqlite3.Connection, limit: int = 200) -> list[tuple[str, int]]:
-    rows = conn.execute(
-        """SELECT s.name, COUNT(*) as cnt
-           FROM subjects s JOIN book_subjects bs ON bs.subject_id = s.id
-           GROUP BY s.id ORDER BY s.name COLLATE NOCASE ASC LIMIT ?""",
-        (limit,),
-    ).fetchall()
-    return [(r["name"], r["cnt"]) for r in rows]
-
-
-def get_bookshelves(conn: sqlite3.Connection, limit: int = 200) -> list[tuple[str, int]]:
-    rows = conn.execute(
-        """SELECT bs.name, COUNT(*) as cnt
-           FROM bookshelves bs JOIN book_bookshelves bb ON bb.bookshelf_id = bs.id
-           GROUP BY bs.id ORDER BY bs.name COLLATE NOCASE ASC LIMIT ?""",
-        (limit,),
-    ).fetchall()
-    return [(r["name"], r["cnt"]) for r in rows]
+def fts_schema_current(conn: sqlite3.Connection) -> bool:
+    """Return True if books_fts has the current 4-column schema."""
+    try:
+        conn.execute("SELECT subjects FROM books_fts LIMIT 1")
+        return True
+    except sqlite3.OperationalError:
+        return False
 
 
 def build_fts_query(text: str) -> str:
@@ -143,8 +134,6 @@ def search_books(
     conn: sqlite3.Connection,
     query: str = "",
     lang_code: str = "",
-    subject: str = "",
-    bookshelf: str = "",
     page: int = 0,
     page_size: int = 50,
 ) -> tuple[list[BookRow], int]:
@@ -178,24 +167,6 @@ def search_books(
     if lang_code:
         base += " AND l.code = ?"
         params.append(lang_code)
-
-    if subject:
-        base += (
-            " AND b.id IN ("
-            "  SELECT bs2.book_id FROM book_subjects bs2"
-            "  JOIN subjects s2 ON s2.id = bs2.subject_id WHERE s2.name = ?"
-            ")"
-        )
-        params.append(subject)
-
-    if bookshelf:
-        base += (
-            " AND b.id IN ("
-            "  SELECT bb2.book_id FROM book_bookshelves bb2"
-            "  JOIN bookshelves bs3 ON bs3.id = bb2.bookshelf_id WHERE bs3.name = ?"
-            ")"
-        )
-        params.append(bookshelf)
 
     base += " GROUP BY b.id ORDER BY b.title COLLATE NOCASE ASC"
 

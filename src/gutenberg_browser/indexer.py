@@ -256,8 +256,12 @@ class _Batcher:
             )
 
         conn.execute(
-            "INSERT OR REPLACE INTO books_fts(rowid, title, author_names) VALUES(?,?,?)",
-            (book.id, book.title, ", ".join(author_names)),
+            "INSERT OR REPLACE INTO books_fts(rowid, title, author_names, subjects, bookshelves)"
+            " VALUES(?,?,?,?,?)",
+            (
+                book.id, book.title, ", ".join(author_names),
+                " ".join(book.subjects), " ".join(book.bookshelves),
+            ),
         )
 
 

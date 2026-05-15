@@ -7,7 +7,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Footer, Header
 
-from .db import get_book_count, get_bookshelves, get_connection, get_languages, get_subjects, get_book_detail
+from .db import fts_schema_current, get_book_count, get_connection, get_languages, get_book_detail
 from .widgets.detail_panel import BookDetail
 from .widgets.progress_screen import IndexingProgressScreen
 from .widgets.search_panel import SearchPanel
@@ -133,13 +133,16 @@ class GutenbergApp(App):
     def _open_db(self) -> None:
         try:
             self.db = get_connection(DB_PATH)
+            if not fts_schema_current(self.db):
+                self.db.close()
+                self.db = None
+                self._start_full_index()
+                return
             count = get_book_count(self.db)
             self.sub_title = f"{count:,} books"
-            languages  = get_languages(self.db)
-            subjects   = get_subjects(self.db)
-            bookshelves = get_bookshelves(self.db)
+            languages = get_languages(self.db)
             panel = self.query_one(SearchPanel)
-            panel.populate_filters(languages, subjects, bookshelves)
+            panel.populate_filters(languages)
             panel._do_search()
             panel.focus_search()
         except Exception as e:
