@@ -106,6 +106,7 @@ class SearchPanel(Vertical):
         self._debounce_timer: Optional[Timer] = None
         self._lang_options: list[tuple[str, str]] = [("All Languages", "")]
         self._updating_lang = False
+        self._last_lang_refresh_query: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Search title, author, subject…", id="search-input")
@@ -170,7 +171,9 @@ class SearchPanel(Vertical):
         self._total = total
         self._populate_results(rows)
         self._update_pagination()
-        self._refresh_lang_filter(get_languages(conn, query), lang_code, lang_name)
+        if query != self._last_lang_refresh_query:
+            self._last_lang_refresh_query = query
+            self._refresh_lang_filter(get_languages(conn, query), lang_code, lang_name)
 
     def _refresh_lang_filter(self, languages, current_code, lang_name_fn) -> None:
         new_options = [("All Languages", "")] + [
