@@ -141,6 +141,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS books_fts USING fts5(
     author_names,
     subjects,
     bookshelves,
+    summary,
     tokenize = 'unicode61 remove_diacritics 2'
 );
 
@@ -179,9 +180,9 @@ def get_languages(conn: sqlite3.Connection) -> list[tuple[str, int]]:
 
 
 def fts_schema_current(conn: sqlite3.Connection) -> bool:
-    """Return True if books_fts has the current 4-column schema."""
+    """Return True if books_fts has the current 5-column schema."""
     try:
-        conn.execute("SELECT subjects FROM books_fts LIMIT 1")
+        conn.execute("SELECT summary FROM books_fts LIMIT 1")
         return True
     except sqlite3.OperationalError:
         return False
