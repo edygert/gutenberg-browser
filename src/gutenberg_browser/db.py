@@ -213,13 +213,29 @@ def search_books(
     conn: sqlite3.Connection,
     query: str = "",
     lang_code: str = "",
+    sort: str = "title",
     page: int = 0,
     page_size: int = 50,
 ) -> tuple[list[BookRow], int]:
     params: list = []
     fts_query = build_fts_query(query) if query else ""
 
-    if fts_query:
+    # Relevance sort requires books_fts as the driving table to expose `rank`
+    if fts_query and sort == "relevance":
+        base = """
+            SELECT b.id, b.title,
+                   COALESCE(GROUP_CONCAT(a.name, ', '), '') AS authors,
+                   b.issued, l.code AS language, b.downloads
+            FROM (SELECT rowid AS bid, rank FROM books_fts WHERE books_fts MATCH ?) ranked
+            JOIN books b ON b.id = ranked.bid
+            LEFT JOIN book_authors ba ON ba.book_id = b.id
+            LEFT JOIN authors a ON a.id = ba.author_id
+            LEFT JOIN languages l ON l.id = b.language_id
+            WHERE 1=1
+        """
+        params.append(fts_query)
+        order = "ORDER BY MIN(ranked.rank)"
+    elif fts_query:
         base = """
             SELECT b.id, b.title,
                    COALESCE(GROUP_CONCAT(a.name, ', '), '') AS authors,
@@ -231,6 +247,7 @@ def search_books(
             WHERE b.id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)
         """
         params.append(fts_query)
+        order = "ORDER BY b.downloads DESC" if sort == "downloads" else "ORDER BY b.title COLLATE NOCASE ASC"
     else:
         base = """
             SELECT b.id, b.title,
@@ -242,12 +259,13 @@ def search_books(
             LEFT JOIN languages l ON l.id = b.language_id
             WHERE 1=1
         """
+        order = "ORDER BY b.downloads DESC" if sort == "downloads" else "ORDER BY b.title COLLATE NOCASE ASC"
 
     if lang_code:
         base += " AND l.code = ?"
         params.append(lang_code)
 
-    base += " GROUP BY b.id ORDER BY b.title COLLATE NOCASE ASC"
+    base += f" GROUP BY b.id {order}"
 
     count_row = conn.execute(
         f"SELECT COUNT(*) FROM ({base}) _sub", params

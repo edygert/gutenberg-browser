@@ -106,12 +106,17 @@ class SearchPanel(Vertical):
         self._debounce_timer: Optional[Timer] = None
         self._lang_options: list[tuple[str, str]] = [("All Languages", "")]
         self._updating_lang = False
+        self._updating_sort = False
         self._last_lang_refresh_query: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Search title, author, subject…", id="search-input")
         with Vertical(id="filter-bar"):
             yield Select(self._lang_options, value="", id="lang-filter", allow_blank=False)
+            yield Select(
+                [("Alpha", "title"), ("Downloads", "downloads"), ("Relevance", "relevance")],
+                value="title", id="sort-select", allow_blank=False,
+            )
         yield Static("", id="result-count")
         yield ListView(id="results-list")
         with Horizontal(id="pagination-bar"):
@@ -147,6 +152,22 @@ class SearchPanel(Vertical):
         except Exception:
             return ""
 
+    def _get_sort(self) -> str:
+        try:
+            v = self.query_one("#sort-select", Select).value
+            return "title" if v is Select.NULL else str(v)
+        except Exception:
+            return "title"
+
+    def _set_sort_silently(self, value: str) -> None:
+        self._updating_sort = True
+        try:
+            self.query_one("#sort-select", Select).value = value
+        except Exception:
+            pass
+        finally:
+            self._updating_sort = False
+
     def _schedule_search(self, reset_page: bool = True) -> None:
         if self._debounce_timer is not None:
             self._debounce_timer.stop()
@@ -161,10 +182,15 @@ class SearchPanel(Vertical):
             return
         query = self._get_query()
         lang_code = self._get_lang()
+        sort = self._get_sort()
+        if not query and sort == "relevance":
+            sort = "title"
+            self._set_sort_silently("title")
         rows, total = search_books(
             conn,
             query=query,
             lang_code=lang_code,
+            sort=sort,
             page=self._page,
             page_size=PAGE_SIZE,
         )
@@ -216,6 +242,8 @@ class SearchPanel(Vertical):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "lang-filter" and not self._updating_lang:
+            self._schedule_search(reset_page=True)
+        elif event.select.id == "sort-select" and not self._updating_sort:
             self._schedule_search(reset_page=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
