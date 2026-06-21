@@ -9,7 +9,7 @@ from textual.widgets import Footer, Header
 
 from .db import fts_schema_current, get_book_count, get_connection, get_languages, get_book_detail
 from .widgets.detail_panel import BookDetail
-from .widgets.progress_screen import IndexingProgressScreen
+from .widgets.progress_screen import ConfirmRefreshScreen, IndexingProgressScreen
 from .widgets.search_panel import SearchPanel
 
 ZIP_PATH = Path("rdf-files.tar.zip")
@@ -25,6 +25,7 @@ class GutenbergApp(App):
         Binding("q", "quit", "Quit"),
         Binding("/", "focus_search", "Search", show=True),
         Binding("o", "open_browser", "Open in Browser", show=True),
+        Binding("d", "refresh_catalog", "Refresh Catalog", show=True),
         Binding("escape", "clear_search", "Clear", show=False),
     ]
 
@@ -33,7 +34,7 @@ class GutenbergApp(App):
     def __init__(self, mode: str = "normal") -> None:
         super().__init__()
         self.db: Optional[sqlite3.Connection] = None
-        self._mode = mode  # "normal", "update", "reindex"
+        self._mode = mode  # "normal", "update", "reindex", "download"
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -44,7 +45,9 @@ class GutenbergApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        if self._mode == "reindex" or not DB_PATH.exists():
+        if self._mode == "download":
+            self._start_download_and_index()
+        elif self._mode == "reindex" or not DB_PATH.exists():
             self._start_full_index()
         elif self._mode == "update":
             self._start_update_index()
@@ -75,6 +78,16 @@ class GutenbergApp(App):
             exclusive=True,
         )
 
+    def _start_download_and_index(self) -> None:
+        screen = IndexingProgressScreen("Downloading catalog…")
+        self.push_screen(screen)
+        self.run_worker(
+            self._worker_download_and_index,
+            thread=True,
+            name="download-index",
+            exclusive=True,
+        )
+
     def _worker_full_index(self) -> None:
         from .indexer import full_index
 
@@ -85,6 +98,13 @@ class GutenbergApp(App):
         self.call_from_thread(self._on_index_done, 0, 0, 0)
 
     def _worker_update_index(self) -> None:
+        self._run_incremental_index()
+
+    def _run_incremental_index(self) -> None:
+        """Update the index in place (full build if the DB is missing).
+
+        Runs on a worker thread; shared by --update and the download flow.
+        """
         from .indexer import full_index, update_index
 
         if not DB_PATH.exists():
@@ -99,6 +119,50 @@ class GutenbergApp(App):
 
         added, updated, skipped = update_index(ZIP_PATH, DB_PATH, progress_cb=progress)
         self.call_from_thread(self._on_index_done, added, updated, skipped)
+
+    def _worker_download_and_index(self) -> None:
+        from .indexer import download_catalog
+
+        def progress(downloaded: int, total: int) -> None:
+            self.call_from_thread(self._on_download_progress, downloaded, total)
+
+        try:
+            download_catalog(ZIP_PATH, progress_cb=progress)
+        except Exception as e:
+            self.call_from_thread(self._on_download_error, str(e))
+            return
+
+        self.call_from_thread(
+            self._set_screen_phase, "Updating index…", "Applying the new catalog…"
+        )
+        self._run_incremental_index()
+
+    def _on_download_progress(self, downloaded: int, total: int) -> None:
+        try:
+            screen = self.screen
+            if isinstance(screen, IndexingProgressScreen):
+                screen.update_download(downloaded, total)
+        except Exception:
+            pass
+
+    def _set_screen_phase(self, title: str, subtitle: str) -> None:
+        try:
+            screen = self.screen
+            if isinstance(screen, IndexingProgressScreen):
+                screen.set_phase(title, subtitle)
+        except Exception:
+            pass
+
+    def _on_download_error(self, message: str) -> None:
+        try:
+            screen = self.screen
+            if isinstance(screen, IndexingProgressScreen):
+                screen.show_error(message)
+        except Exception:
+            pass
+        # Fall back to whatever DB we already had, if any.
+        if self.db is None and DB_PATH.exists():
+            self._open_db()
 
     def _on_index_progress(self, current: int, total: int) -> None:
         try:
@@ -164,6 +228,21 @@ class GutenbergApp(App):
                 webbrowser.open(f"https://www.gutenberg.org/ebooks/{detail._current_book.id}")
         except Exception:
             pass
+
+    def action_refresh_catalog(self) -> None:
+        def on_confirm(confirmed: Optional[bool]) -> None:
+            if not confirmed:
+                return
+            # Release our read connection so the rebuild can't hit a lock.
+            if self.db is not None:
+                try:
+                    self.db.close()
+                except Exception:
+                    pass
+                self.db = None
+            self._start_download_and_index()
+
+        self.push_screen(ConfirmRefreshScreen(), on_confirm)
 
     def action_clear_search(self) -> None:
         try:

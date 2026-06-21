@@ -347,7 +347,8 @@ def get_book_detail(conn: sqlite3.Connection, book_id: int) -> Optional[Book]:
 
 def get_content_hashes(conn: sqlite3.Connection) -> dict[int, str]:
     rows = conn.execute("SELECT id, content_hash FROM books WHERE content_hash IS NOT NULL").fetchall()
-    return {r["id"]: r["content_hash"] for r in rows}
+    # Indexer connections use the default tuple row factory, so index by position.
+    return {r[0]: r[1] for r in rows}
 
 
 def delete_book(conn: sqlite3.Connection, book_id: int) -> None:

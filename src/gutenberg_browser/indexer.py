@@ -1,12 +1,17 @@
 import hashlib
+import os
 import re
 import sqlite3
 import tarfile
+import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
+
+CATALOG_URL = "https://www.gutenberg.org/cache/epub/feeds/rdf-files.tar.zip"
+_DOWNLOAD_CHUNK = 64 * 1024
 
 from .db import delete_book, get_content_hashes, init_schema
 from .models import Author, Book, BookFormat
@@ -22,6 +27,45 @@ _RDF_RESOURCE = f"{{{NS['rdf']}}}resource"
 
 LCSH_URI = "http://purl.org/dc/terms/LCSH"
 BATCH_SIZE = 500
+
+
+def download_catalog(
+    dest: Path,
+    url: str = CATALOG_URL,
+    progress_cb: Optional[Callable[[int, int], None]] = None,
+) -> None:
+    """Download the RDF catalog archive to `dest` atomically.
+
+    Streams to a temp file and renames on success. `progress_cb(downloaded,
+    total)` is called periodically; `total` is 0 when the server omits a
+    Content-Length header. Any failure removes the temp file and re-raises.
+    """
+    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    # Default Python User-Agent is sometimes rejected by gutenberg.org.
+    req = urllib.request.Request(url, headers={"User-Agent": "gutenberg-browser"})
+    try:
+        with urllib.request.urlopen(req) as resp:
+            length = resp.headers.get("Content-Length")
+            total = int(length) if length and length.isdigit() else 0
+            downloaded = 0
+            with open(tmp, "wb") as f:
+                while True:
+                    chunk = resp.read(_DOWNLOAD_CHUNK)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_cb:
+                        progress_cb(downloaded, total)
+            if progress_cb:
+                progress_cb(downloaded, total)
+        os.replace(tmp, dest)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _text(el: Optional[ET.Element]) -> Optional[str]:
@@ -267,6 +311,9 @@ class _Batcher:
 
 
 def _set_indexing_pragmas(conn: sqlite3.Connection) -> None:
+    # Autocommit mode: the batcher drives transactions with explicit BEGIN/COMMIT,
+    # and delete_book's DML must not leave an implicit transaction open underneath them.
+    conn.isolation_level = None
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA cache_size = -65536")
     conn.execute("PRAGMA temp_store = MEMORY")
@@ -383,6 +430,7 @@ def index_rdf_file(db_path: Path, rdf_path: Path) -> str:
     book.content_hash = h
 
     conn = sqlite3.connect(db_path)
+    conn.isolation_level = None  # see _set_indexing_pragmas
     try:
         existing = get_content_hashes(conn)
         if existing.get(book.id) == h:

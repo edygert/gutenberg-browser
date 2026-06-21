@@ -19,11 +19,17 @@ def main() -> None:
         action="store_true",
         help="Drop and fully rebuild the index from scratch, then open the browser.",
     )
+    group.add_argument(
+        "--download",
+        action="store_true",
+        help="Download the latest catalog from gutenberg.org, update the index, then open the browser.",
+    )
     args = parser.parse_args()
 
     zip_path = Path("rdf-files.tar.zip")
-    if not zip_path.exists():
-        print(f"Error: {zip_path} not found. Run from the directory containing rdf-files.tar.zip.", file=sys.stderr)
+    # --download fetches the archive itself, so it may legitimately not exist yet.
+    if not args.download and not zip_path.exists():
+        print(f"Error: {zip_path} not found. Run from the directory containing rdf-files.tar.zip, or use --download.", file=sys.stderr)
         sys.exit(1)
 
     mode = "normal"
@@ -31,6 +37,8 @@ def main() -> None:
         mode = "update"
     elif args.reindex:
         mode = "reindex"
+    elif args.download:
+        mode = "download"
 
     from .app import GutenbergApp
     app = GutenbergApp(mode=mode)
