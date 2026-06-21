@@ -5,7 +5,7 @@ from textual.app import ComposeResult
 from textual.widgets import Button, Static
 from textual.containers import Vertical
 
-from ..models import Book
+from ..models import Book, clean_title
 
 
 _PLACEHOLDER = "[dim]Select a book from the list to view its details.[/dim]"
@@ -52,7 +52,7 @@ def _esc(text: str) -> str:
 def _render_text(book: Book) -> str:
     lines: list[str] = []
 
-    lines.append(f"[bold $accent]{_esc(book.title)}[/]")
+    lines.append(f"[bold $accent]{_esc(clean_title(book.title))}[/]")
     lines.append("")
 
     if book.authors:

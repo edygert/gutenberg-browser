@@ -6,7 +6,7 @@ from textual.reactive import reactive
 from textual.timer import Timer
 from textual.widgets import Button, Input, Label, ListItem, ListView, Select, Static
 
-from ..models import BookRow
+from ..models import BookRow, clean_title
 
 
 PAGE_SIZE = 50
@@ -20,7 +20,7 @@ class BookListItem(ListItem):
         self.book_row = row
 
     def compose(self) -> ComposeResult:
-        title = self.book_row.title
+        title = clean_title(self.book_row.title)
         authors = self.book_row.authors or "Unknown"
         year = (self.book_row.issued or "")[:4]
         title_trunc = title[:42] + "…" if len(title) > 42 else title

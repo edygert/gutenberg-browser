@@ -1,4 +1,21 @@
+import re
 from dataclasses import dataclass, field
+
+_WHITESPACE = re.compile(r"\s+")
+_DISPLAY_QUOTES = ('"', "“", "”")  # straight and curly double quotes
+
+
+def clean_title(title: str) -> str:
+    """Normalize a title for display.
+
+    Many Project Gutenberg titles carry embedded newlines and wrap phrases in
+    double quotes (e.g. '"Captains Courageous": A Story'), which add visual
+    noise in compact result rows. Collapse whitespace and drop double quotes.
+    """
+    title = _WHITESPACE.sub(" ", title).strip()
+    for q in _DISPLAY_QUOTES:
+        title = title.replace(q, "")
+    return title
 
 
 @dataclass

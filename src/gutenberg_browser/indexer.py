@@ -14,7 +14,7 @@ CATALOG_URL = "https://www.gutenberg.org/cache/epub/feeds/rdf-files.tar.zip"
 _DOWNLOAD_CHUNK = 64 * 1024
 
 from .db import delete_book, get_content_hashes, init_schema
-from .models import Author, Book, BookFormat
+from .models import Author, Book, BookFormat, clean_title
 
 NS = {
     "rdf":     "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -109,7 +109,7 @@ def parse_rdf(content: bytes) -> Optional[Book]:
     book_id = int(m.group(1))
 
     title_el = ebook.find("dcterms:title", NS)
-    title = _text(title_el) or "(untitled)"
+    title = clean_title(_text(title_el) or "(untitled)")
 
     issued  = _text(ebook.find("dcterms:issued", NS))
     rights  = _text(ebook.find("dcterms:rights", NS))
