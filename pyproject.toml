@@ -2,6 +2,8 @@
 name = "gutenberg-browser"
 version = "0.1.0"
 description = "Project Gutenberg metadata browser TUI"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "textual>=0.89.0",
